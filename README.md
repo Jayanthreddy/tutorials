@@ -1,31 +1,80 @@
+import nltk
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
+import textstat
+from textblob import TextBlob
 
-The "REST with Spring" Classes
-==============================
+# Download necessary NLTK data
+nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
+nltk.download('wordnet')
 
-After 5 months of work, here's the Master Class of REST With Spring: <br/>
-**[>> THE REST WITH SPRING MASTER CLASS](http://www.baeldung.com/rest-with-spring-course?utm_source=github&utm_medium=social&utm_content=tutorials&utm_campaign=rws#master-class)**
+# Load a small language model and tokenizer (e.g., DistilBERT)
+model_name = "distilbert-base-uncased"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForSequenceClassification.from_pretrained(model_name)
 
-And here's the Master Class of Learn Spring Security: <br/>
-**[>> LEARN SPRING SECURITY MASTER CLASS](http://www.baeldung.com/learn-spring-security-course?utm_source=github&utm_medium=social&utm_content=tutorials&utm_campaign=lss#master-class)**
+# Set up the pipeline
+classifier = pipeline("text-classification", model=model, tokenizer=tokenizer, return_all_scores=True)
 
+# Function to evaluate readability
+def evaluate_readability(text):
+    flesch_score = textstat.flesch_reading_ease(text)
+    return flesch_score
 
+# Function to evaluate completeness
+def evaluate_completeness(text):
+    # Heuristic: Check for presence of key elements in a Jira story
+    required_phrases = ["As a", "I want", "so that"]
+    completeness_score = sum(phrase in text for phrase in required_phrases) / len(required_phrases) * 10
+    return completeness_score
 
-Spring Tutorials
-================
+# Function to evaluate clarity
+def evaluate_clarity(text):
+    # Calculate sentiment polarity using TextBlob (range: -1 to 1, where >0 means positive sentiment)
+    blob = TextBlob(text)
+    polarity_score = blob.sentiment.polarity
+    return polarity_score
 
-This project is **a collection of small and focused tutorials** each covering a single and well defined area of development. 
-Most of the tutorial projects are focused on the `Spring Framework` (and `Spring Security`).  
-In additional to Spring, the following technologies are in focus: `core Java`, `Jackson`, `HttpClient`, `Guava`. 
+# Function to evaluate technical accuracy
+def evaluate_technical_accuracy(text):
+    # Example: Check for presence of technical terms or acronyms
+    technical_terms = ["API", "UI", "SDK"]
+    accuracy_score = sum(term in text for term in technical_terms) / len(technical_terms) * 10
+    return accuracy_score
 
+# Function to evaluate ease of understanding
+def evaluate_understanding(text):
+    # Use the language model to classify the text into "easy" or "difficult"
+    scores = classifier(text)[0]
+    understanding_score = scores[0]['score'] * 10  # Assuming the first label is for "easy"
+    return understanding_score
 
-Working with the code in Eclipse
-================================
-Any IDE can be used to work with the projects, but if you're using Eclipse, consider the following. 
+# Function to process a Jira story
+def process_jira_story(story):
+    readability_score = evaluate_readability(story)
+    completeness_score = evaluate_completeness(story)
+    clarity_score = evaluate_clarity(story)
+    technical_accuracy_score = evaluate_technical_accuracy(story)
+    understanding_score = evaluate_understanding(story)
+    
+    return {
+        'readability_score': readability_score,
+        'completeness_score': completeness_score,
+        'clarity_score': clarity_score,
+        'technical_accuracy_score': technical_accuracy_score,
+        'understanding_score': understanding_score,
+        'average_score': (readability_score + completeness_score + clarity_score + technical_accuracy_score + understanding_score) / 5
+    }
 
-- import the included **formatter** in Eclipse: 
-`https://github.com/eugenp/tutorials/tree/master/eclipse`
+# Example Jira story
+jira_story = """
+As a user, I want to be able to reset my password so that I can regain access to my account if I forget my password.
+Acceptance Criteria:
+1. The user should receive a password reset link via email.
+2. The link should expire after 24 hours.
+3. The user should be able to set a new password that meets security requirements.
+"""
 
-
-CI - Jenkins
-================================
-This tutorials project is being built **[>> HERE](https://rest-security.ci.cloudbees.com/job/tutorials-unit/)**
+# Process the Jira story
+scores = process_jira_story(jira_story)
+print(scores)
